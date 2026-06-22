@@ -467,6 +467,17 @@ def _compression_threshold_for_model(
         return _CODEX_GPT54_GPT55_COMPACTION_THRESHOLD
     if _is_codex_spark(model, provider):
         return _CODEX_SPARK_COMPACTION_THRESHOLD
+    # NeuralWatt glm-5.2-short has 200K context — raise threshold to 0.88
+    # so compression fires at ~175K instead of ~100K (50% default).
+    # Only applies to the -short variant on NeuralWatt; the full glm-5.2
+    # on NeuralWatt has 1M context and uses the default threshold.
+    if (
+        model
+        and provider
+        and "glm-5.2-short" in model.lower()
+        and "neuralwatt" in provider.lower()
+    ):
+        return 0.88
     return None
 
 # Default auxiliary models for direct API-key providers (cheap/fast for side tasks)
