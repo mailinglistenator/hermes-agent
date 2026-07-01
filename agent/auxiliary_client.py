@@ -481,6 +481,7 @@ def _compression_threshold_for_model(
     provider: Optional[str] = None,
     *,
     allow_codex_gpt55_autoraise: bool = True,
+    base_url: Optional[str] = None,
 ) -> Optional[float]:
     """Return a context-compression threshold override for specific models.
 
@@ -512,14 +513,19 @@ def _compression_threshold_for_model(
     if _is_codex_spark(model, provider):
         return _CODEX_SPARK_COMPACTION_THRESHOLD
     # NeuralWatt glm-5.2-short has 200K context — raise threshold to 0.88
-    # so compression fires at ~175K instead of ~100K (50% default).
+    # so compression fires at ~161K instead of ~92K (50% default).
     # Only applies to the -short variant on NeuralWatt; the full glm-5.2
     # on NeuralWatt has 1M context and uses the default threshold.
+    # CRITICAL: user-defined providers resolve to provider="custom" at
+    # runtime (see runtime_provider.py), so we must check base_url —
+    # which contains "neuralwatt" in the hostname — not just provider.
     if (
         model
-        and provider
         and "glm-5.2-short" in model.lower()
-        and "neuralwatt" in provider.lower()
+        and (
+            (provider and "neuralwatt" in provider.lower())
+            or (base_url and "neuralwatt" in base_url.lower())
+        )
     ):
         return 0.88
     return None

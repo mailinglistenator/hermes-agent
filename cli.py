@@ -9584,6 +9584,8 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin, CLIBillingMixin):
             self._handle_apikey_command(cmd_original)
         elif canonical == "apikey-d":
             self._handle_apikey_d_command(cmd_original)
+        elif canonical == "apikey-c":
+            self._handle_apikey_c_command(cmd_original)
         elif canonical == "codex-runtime":
             self._handle_codex_runtime(cmd_original)
 
