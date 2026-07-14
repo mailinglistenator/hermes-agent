@@ -484,6 +484,28 @@ def _compression_threshold_for_model(
         )
     ):
         return 0.88
+    # hy3-free on OpenCode Zen (opencode.ai/zen) has a 256K context window.
+    # The compressor subtracts model.max_tokens (output reservation) from the
+    # context to get the usable input budget. With model.max_tokens=8192 the
+    # effective window is 256,000 - 8,192 = 247,808. Ratio 0.807076 makes
+    # compaction fire at exactly ~200,000 tokens (0.807076 * 247,808) instead
+    # of the 47,600 it would hit with the global 0.88 ratio defeated by the old
+    # max_tokens:200000 reservation (which collapsed the window to 56K and
+    # tripped the 64K MINIMUM_CONTEXT_LENGTH degenerate branch).
+    # NOTE: max_tokens MUST be > 0 (the API rejects 0 with HTTP 400 code 20015).
+    # CRITICAL: at runtime the opencode-zen provider resolves base_url to
+    # https://opencode.ai/zen/v1, so we match on base_url containing "opencode"
+    # (provider may also surface as "opencode" / "opencode-zen"). Mirrors the
+    # NeuralWatt glm-5.2-short override pattern above.
+    if (
+        model
+        and "hy3-free" in model.lower()
+        and (
+            (provider and "opencode" in provider.lower())
+            or (base_url and "opencode" in base_url.lower())
+        )
+    ):
+        return 0.807076446
     return None
 
 # Default auxiliary models for direct API-key providers (cheap/fast for side tasks)
