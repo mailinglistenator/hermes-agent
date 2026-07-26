@@ -480,9 +480,6 @@ _PROVIDER_MODELS: dict[str, list[str]] = {
         "glm-5.2",
         "glm-5.1",
         "glm-5",
-        "kimi-k2.7-code",
-        "kimi-k2.6",
-        "kimi-k2.5",
         "qwen3.7-max",
         "qwen3.7-plus",
         "qwen3.6-plus",
@@ -3762,33 +3759,22 @@ def opencode_model_api_mode(provider_id: Optional[str], model_id: Optional[str])
         if normalized.startswith("qwen"):
             # All Qwen models on Go (qwen3.7-max, qwen3.7-plus, qwen3.6-plus)
             # are served via /v1/messages per the published Go endpoint table.
-            return "anthropic_messages"
         return "chat_completions"
 
     if provider == "opencode-zen":
         if normalized.startswith("claude-"):
-            return "anthropic_messages"
         if normalized.startswith("gpt-"):
             return "codex_responses"
-        if normalized.startswith("qwen"):
             # Qwen models on Zen moved to /v1/messages per the published
             # Zen endpoint table.
-            return "anthropic_messages"
-        return "chat_completions"
-
-    return "chat_completions"
-
-
 def normalize_opencode_base_url(
     provider_id: Optional[str], api_mode: Optional[str], base_url: Optional[str]
 ) -> str:
     """Normalize an OpenCode Zen / Go base URL for the target API mode.
-
     OpenCode's OpenAI-compatible endpoints live under ``/v1`` (the OpenAI SDK
     appends ``/chat/completions`` or ``/responses``), while the Anthropic SDK
     appends its own ``/v1/messages`` — so anthropic_messages needs the ``/v1``
     suffix stripped.
-
     Crucially this must be SYMMETRIC.  The stripped URL gets persisted to
     config (``model.base_url``) by the TUI/desktop and gateway after switching
     into an anthropic-routed model (e.g. minimax-m2.7 on Go).  A later switch
@@ -3796,35 +3782,25 @@ def normalize_opencode_base_url(
     stripped URL and POSTed to ``https://opencode.ai/zen/go/chat/completions``
     — a 404 (the marketing site).  Re-append ``/v1`` for non-anthropic modes
     so previously-stripped URLs heal themselves.
-
     Only opencode.ai-hosted URLs are re-suffixed; custom proxy overrides via
     ``OPENCODE_*_BASE_URL`` are left alone unless they already carry ``/v1``.
-    """
     url = str(base_url or "").strip().rstrip("/")
     if not url:
         return url
     provider = normalize_provider(provider_id)
     if provider not in {"opencode-zen", "opencode-go"}:
-        return url
-
     import re as _re
-
     if api_mode == "anthropic_messages":
         return _re.sub(r"/v1$", "", url)
-
     # chat_completions / codex_responses: ensure the /v1 suffix is present on
     # official opencode.ai hosts (heals a persisted anthropic-stripped URL).
     if url.endswith("/v1"):
-        return url
     try:
         host = urllib.parse.urlparse(url).netloc.lower()
     except Exception:
         host = ""
     if host == "opencode.ai" or host.endswith(".opencode.ai"):
         return url + "/v1"
-    return url
-
-
 def github_model_reasoning_efforts(
     model_id: Optional[str],
     *,
@@ -3835,7 +3811,6 @@ def github_model_reasoning_efforts(
     normalized = normalize_copilot_model_id(model_id, catalog=catalog, api_key=api_key)
     if not normalized:
         return []
-
     catalog_entry = None
     if catalog is not None:
         catalog_entry = next((item for item in catalog if item.get("id") == normalized), None)
@@ -3843,7 +3818,6 @@ def github_model_reasoning_efforts(
         fetched_catalog = fetch_github_model_catalog(api_key=api_key)
         if fetched_catalog:
             catalog_entry = next((item for item in fetched_catalog if item.get("id") == normalized), None)
-
     if catalog_entry is not None:
         capabilities = catalog_entry.get("capabilities")
         if isinstance(capabilities, dict):
